@@ -3,7 +3,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
 from match.models import Conversation, Message, Notification
-
+from accounts.models import UserProfile
 
 class ChatConsumer(AsyncWebsocketConsumer):
     """
@@ -144,6 +144,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     ws://host/ws/notifications/
     - Join group notif_<user_id>
     - Server pushes notifications here in real-time
+    - ✅ Mark user online/offline in UserProfile
     """
 
     async def connect(self):
@@ -156,6 +157,9 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
+        # ✅ set online = True
+        await self.set_user_online(self.user.id, True)
+
         await self.send_json({"type": "connected", "channel": "notifications"})
 
     async def disconnect(self, close_code):
@@ -164,12 +168,23 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         except Exception:
             pass
 
+        # ✅ set online = False
+        await self.set_user_online(self.user.id, False)
+
     async def notif_push(self, event):
-        # send real-time notification payload
         await self.send_json(event["notification"])
 
     async def send_json(self, data):
         await self.send(text_data=json.dumps(data))
+
+    # ---------- DB helper ----------
+    @database_sync_to_async
+    def set_user_online(self, user_id: int, online: bool):
+        profile, _ = UserProfile.objects.get_or_create(user_id=user_id)
+        profile.is_online = online
+        profile.save(update_fields=["is_online"])
+
+
 
 
 

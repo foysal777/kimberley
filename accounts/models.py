@@ -2,19 +2,50 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 
+
+
+
 class User(AbstractUser):
-    """
-    Single user model. We’ll use email as the primary login field.
-    """
+    PLAN_FREE = "FREE"
+    PLAN_PREMIUM = "PREMIUM"
+
+    PLAN_CHOICES = (
+        (PLAN_FREE, "Free"),
+        (PLAN_PREMIUM, "Premium"),
+    )
     email = models.EmailField(unique=True)
     username = models.CharField(max_length=150, unique=True)  # keep for Django admin compatibility
     is_email_verified = models.BooleanField(default=False)
+    plan_type = models.CharField(max_length=20,choices=PLAN_CHOICES,default=PLAN_FREE)
+    plan_expire_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]  # required when creating superuser
 
+
+
+
+    def is_premium(self):
+      
+        if self.plan_type != self.PLAN_PREMIUM:
+            return False
+        if self.plan_expire_at and self.plan_expire_at < timezone.now():
+            return False
+        return True
+
     def __str__(self):
         return self.email
+
+
+
+
+
+
+
+
+
+
+
 
 
 class EmailOTP(models.Model):
@@ -91,7 +122,7 @@ class TaxonomyItem(models.Model):
 class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
     photo = models.ImageField(upload_to="profile_photos/", null=True, blank=True)
-    full_name = models.CharField(max_length=150)
+    full_name = models.CharField(max_length=150 , blank=True, default="")
     role = models.CharField(max_length=120, blank=True)
     industry = models.CharField(max_length=120, blank=True)
     location = models.CharField(max_length=180, blank=True)

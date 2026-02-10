@@ -6,9 +6,9 @@ admin.site.register(Match)
 admin.site.register(Conversation)       
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ("id", "conversation_id", "sender_id", "content", "timestamp")
+    list_display = ("id", "conversation_id", "sender_id")
     search_fields = ("conversation__id", "sender__email", "content")
-    list_filter = ("timestamp",)
+   
 
 
 

@@ -116,7 +116,6 @@ class DeviceToken(models.Model):
     platform = models.CharField(max_length=20, choices=PLATFORM_CHOICES)
     is_active = models.BooleanField(default=True)
     last_seen_at = models.DateTimeField(null=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
