@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import User, EmailOTP , UserProfile ,  UserProfileSelection , TaxonomyCategory , TaxonomyItem  , UserLocation
+from .models import User, EmailOTP , UserProfile ,  UserProfileSelection , TaxonomyCategory , TaxonomyItem  , UserLocation , Available
+
+
+@admin.register(Available)
+class AvailableAdmin(admin.ModelAdmin):
+    list_display = ("id", "user__email", "is_available", "is_visible")
+    search_fields = ("user__email",)
+    list_filter = ("is_available", "is_visible")
+
 
 @admin.register(UserLocation)
 class UserLocationAdmin(admin.ModelAdmin):

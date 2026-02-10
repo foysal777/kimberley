@@ -147,6 +147,14 @@ class UserLocation(models.Model):
     longitude = models.FloatField()
 
 
+
+
+class Available(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="availability")
+    is_available = models.BooleanField(default=True)
+    is_visible = models.BooleanField(default=True)  # if False, hide from swipe deck and connections list
+
+
 class UserProfileSelection(models.Model):
     """
     Join table: profile <-> taxonomy item

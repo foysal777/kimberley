@@ -310,17 +310,16 @@ def haversine_km(lat1, lon1, lat2, lon2):
 
 import math
 from datetime import timedelta
-
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
 from .models import SwipeAction
 from accounts.models import UserProfileSelection
 from accounts.models import UserLocation
+from django.db.models import Q
+from accounts.models import Available  
 
 User = get_user_model()
 
@@ -350,8 +349,10 @@ def feed(request):
     - Exclude LIKE forever
     - Exclude PASS only for last 7 days
     - Only users with profile + location
+    -  Exclude users where availability.is_visible = False
     - Filter within radius_km
     - Rank by (taxonomy match score desc, distance asc)
+    -  Response includes is_available
     """
 
     # ---- query params ----
@@ -376,10 +377,7 @@ def feed(request):
 
     # ---- my profile required ----
     if not hasattr(request.user, "profile"):
-        return Response(
-            {"detail": "Your profile is not set."},
-            status=400
-        )
+        return Response({"detail": "Your profile is not set."}, status=400)
 
     # ---- my taxonomy items ----
     my_item_ids = set(
@@ -398,20 +396,21 @@ def feed(request):
     passed_recent_ids = SwipeAction.objects.filter(
         from_user=request.user,
         action="PASS",
-        created_at__gte=cutoff,  # only last 7 days
+        created_at__gte=cutoff,
     ).values_list("to_user_id", flat=True)
 
-    # combine
     exclude_ids = liked_ids.union(passed_recent_ids)
 
     # ---- candidate base queryset ----
+ 
     qs = (
         User.objects
         .exclude(id=request.user.id)
         .exclude(id__in=exclude_ids)
         .filter(profile__isnull=False)
         .filter(location__isnull=False)
-        .select_related("profile", "location")
+        .filter(Q(availability__isnull=True) | Q(availability__is_visible=True))  
+        .select_related("profile", "location", "availability")  #  join availability
     )
 
     # ---- compute score + distance in python ----
@@ -440,6 +439,7 @@ def feed(request):
     data = []
     for score, d_km, u in results:
         p = u.profile
+        a = getattr(u, "availability", None)
 
         photo_url = None
         if p.photo:
@@ -456,6 +456,23 @@ def feed(request):
             "match_score": score,
             "distance_km": round(d_km, 2),
             "is_online": p.is_online,
+            "is_visible": a.is_visible if a else True,
+            "is_available": bool(a and a.is_available),
         })
 
-    return Response(data)
+
+
+    my_profile = getattr(request.user, "profile", None)
+
+    return Response({
+    "me": {
+        "user_id": request.user.id,
+        "full_name": (
+            my_profile.full_name
+            if my_profile and my_profile.full_name
+            else request.user.username
+        ),
+    },
+    "results": data
+})
+
