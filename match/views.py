@@ -4,7 +4,6 @@ from django.utils.timesince import timesince
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
 from match.models import Match, Message
 
 User = get_user_model()
@@ -207,7 +206,6 @@ def my_notifications(request):
 
 
 import math
-
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -293,4 +291,157 @@ def match_users_info(request, match_id: int):
     return Response({
         "match_id": match.id,
         "results": results
+    })
+
+
+
+
+
+
+
+
+
+from datetime import timedelta
+
+from django.db.models import Q, Count, Min
+from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from match.models import Match, Conversation, Message
+from swipe.models import SwipeAction
+from accounts.models import UserProfileSelection
+from accounts.models import ProfileView  
+
+
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def analytics(request):
+    """
+    GET /api/match/analytics/?days=7   or  /api/match/analytics/?days=30
+    """
+
+    # ---- days param ----
+    days_raw = request.query_params.get("days", "7")
+    try:
+        days = int(days_raw)
+    except (TypeError, ValueError):
+        days = 7
+    if days not in (7, 30):
+        days = 7
+
+    now = timezone.now()
+    since = now - timedelta(days=days)
+    user = request.user
+
+    # ---------------------------
+    # 1) Connections Sent (LIKE given by me) in period
+    # ---------------------------
+    connections_sent = SwipeAction.objects.filter(
+        from_user=user,
+        action=SwipeAction.ACTION_LIKE,
+        created_at__gte=since
+    ).count()
+
+    # ---------------------------
+    # 2) My active matches
+    # ---------------------------
+    my_matches_qs = Match.objects.filter(
+        is_active=True
+    ).filter(
+        Q(user1=user) | Q(user2=user)
+    )
+
+    # Connections Accepted (matches created in period)
+    connections_accepted = my_matches_qs.filter(created_at__gte=since).count()
+
+    # ---------------------------
+    # Conversations for my matches
+    # ---------------------------
+    my_conversation_ids = Conversation.objects.filter(
+        match__in=my_matches_qs
+    ).values_list("id", flat=True)
+
+    # ---------------------------
+    # 3) Messages Received (from other users) in period
+    # ---------------------------
+    messages_received = (
+        Message.objects
+        .filter(conversation_id__in=my_conversation_ids, created_at__gte=since)
+        .exclude(sender=user)
+        .count()
+    )
+
+    # ---------------------------
+    # 4) Start Chat (first message time >= since) in my conversations
+    # ---------------------------
+    start_chat = (
+        Message.objects
+        .filter(conversation_id__in=my_conversation_ids)
+        .values("conversation_id")
+        .annotate(first_time=Min("created_at"))
+        .filter(first_time__gte=since)
+        .count()
+    )
+
+    # ---------------------------
+    # 5) Viewed Profile (others viewed my profile) in period
+    # ---------------------------
+    viewed_profile = ProfileView.objects.filter(
+        viewed_user=user,
+        created_at__gte=since
+    ).count()
+
+    # ---------------------------
+    # 6) Audience Overview
+    # period matches -> other users -> their taxonomy selections -> top items
+    # TaxonomyItem field is `text` (NOT name)
+    # ---------------------------
+    period_matches = my_matches_qs.filter(created_at__gte=since).only("user1_id", "user2_id")
+
+    other_user_ids = []
+    for m in period_matches:
+        other_user_ids.append(m.user2_id if m.user1_id == user.id else m.user1_id)
+
+    if other_user_ids:
+        top_items_qs = (
+            UserProfileSelection.objects
+            .filter(profile__user_id__in=other_user_ids)
+            .values("item_id", "item__text")           # ✅ FIX: item__text
+            .annotate(cnt=Count("item_id"))
+            .order_by("-cnt")[:3]
+        )
+        audience_overview = [
+            {"item_id": x["item_id"], "name": x["item__text"], "count": x["cnt"]}  # name key kept for frontend
+            for x in top_items_qs
+        ]
+    else:
+        audience_overview = []
+
+    # ---------------------------
+    # 7) Active conversations in period (by last_message_at)
+    # ---------------------------
+    active_conversations = Conversation.objects.filter(
+        id__in=my_conversation_ids,
+        last_message_at__gte=since
+    ).count()
+
+    return Response({
+        "range_days": days,
+        "since": since.isoformat(),
+        "top_summary": {
+            "connections_sent": connections_sent,
+            "connections_accepted": connections_accepted,
+            "messages_received": messages_received,
+        },
+        "connection_activity": {
+            "viewed_profile": viewed_profile,
+            "start_chat": start_chat,
+        },
+        "audience_overview": audience_overview,
+        "your_activity": {
+            "active_conversations": active_conversations,
+        }
     })

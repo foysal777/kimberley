@@ -1,5 +1,16 @@
 from django.contrib import admin
-from .models import User, EmailOTP , UserProfile ,  UserProfileSelection , TaxonomyCategory , TaxonomyItem  , UserLocation , Available
+from .models import User, EmailOTP , UserProfile ,  UserProfileSelection , TaxonomyCategory , TaxonomyItem  , UserLocation , Available , LegalDocument
+
+
+
+
+@admin.register(LegalDocument)
+class LegalDocumentAdmin(admin.ModelAdmin):
+    list_display = ("id", "doc_type", "title", "version", "updated_at")
+    search_fields = ("doc_type", "title")
+    list_filter = ("doc_type", "updated_at")
+
+
 
 
 @admin.register(Available)

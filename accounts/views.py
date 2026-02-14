@@ -652,3 +652,113 @@ def profile_taxonomy(request):
             },
             status=status.HTTP_200_OK
         )
+
+
+
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from accounts.models import UserLocation  
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def save_user_location(request):
+    """
+    POST /api/location/
+
+    {
+        "latitude": 23.8103,
+        "longitude": 90.4125
+    }
+    """
+
+    lat = request.data.get("latitude")
+    lon = request.data.get("longitude")
+
+    if lat is None or lon is None:
+        return Response(
+            {"detail": "latitude and longitude are required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except (TypeError, ValueError):
+        return Response(
+            {"detail": "latitude and longitude must be valid numbers."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # optional validation range
+    if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+        return Response(
+            {"detail": "Invalid latitude or longitude range."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # create or update
+    location, created = UserLocation.objects.update_or_create(
+        user=request.user,
+        defaults={
+            "latitude": lat,
+            "longitude": lon
+        }
+    )
+
+    return Response({
+        "user_id": request.user.id,
+        "latitude": location.latitude,
+        "longitude": location.longitude,
+        "created": created
+    }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+from .models import LegalDocument
+
+
+def _get_doc(doc_type: str):
+    return LegalDocument.objects.filter(doc_type=doc_type).first()
+
+
+@api_view(["GET"])
+def privacy_policy(request):
+    doc = _get_doc(LegalDocument.TYPE_PRIVACY)
+    if not doc:
+        return Response({"detail": "Privacy policy not set."}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({
+        "type": "PRIVACY",
+        "title": doc.title or "Privacy Policy",
+        "content": doc.content,
+        "version": doc.version,
+        "updated_at": doc.updated_at,
+    })
+
+
+@api_view(["GET"])
+def terms_and_conditions(request):
+    doc = _get_doc(LegalDocument.TYPE_TERMS)
+    if not doc:
+        return Response({"detail": "Terms & conditions not set."}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({
+        "type": "TERMS",
+        "title": doc.title or "Terms & Conditions",
+        "content": doc.content,
+        "version": doc.version,
+        "updated_at": doc.updated_at,
+    })

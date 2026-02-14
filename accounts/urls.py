@@ -7,10 +7,13 @@ from .views import (
     ForgotPasswordView,
     ResetPasswordView,
     ChangePasswordView,
+    privacy_policy,
     profile_me,
     profile_taxonomy,
     public_taxonomy_list,
+    save_user_location,
     taxonomy_list,
+    terms_and_conditions,
 )
 
 urlpatterns = [
@@ -28,6 +31,10 @@ urlpatterns = [
     path("taxonomy/", taxonomy_list, name="taxonomy"), # cancel 
     path("taxonomy/public/", public_taxonomy_list, name="taxonomy-public"), #all public taxonomy list ( for dropdowns in frontend )
     path("user-profile/", profile_taxonomy, name="profile-taxonomy"),  
+    path("privacy-policy/", privacy_policy, name="privacy-policy"),
+    path("terms/", terms_and_conditions, name="terms-and-conditions"),
+    path("location/", save_user_location, name="save-user-location"),
+
 
 ]
 

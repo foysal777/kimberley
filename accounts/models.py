@@ -141,6 +141,17 @@ class UserProfile(models.Model):
         return f"Profile({self.user_id}: {self.full_name} user.email={self.user.email})"
 
 
+
+class ProfileView(models.Model):
+    viewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="views_made")
+    viewed_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="views_received")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+
+
+
+
 class UserLocation(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="location")
     latitude = models.FloatField()
@@ -165,3 +176,33 @@ class UserProfileSelection(models.Model):
 
     class Meta:
         unique_together = ("profile", "item")
+
+
+
+
+
+
+
+
+
+
+from django.db import models
+
+
+class LegalDocument(models.Model):
+    TYPE_PRIVACY = "PRIVACY"
+    TYPE_TERMS = "TERMS"
+
+    TYPE_CHOICES = (
+        (TYPE_PRIVACY, "Privacy Policy"),
+        (TYPE_TERMS, "Terms & Conditions"),
+    )
+
+    doc_type = models.CharField(max_length=20, choices=TYPE_CHOICES, unique=True)
+    title = models.CharField(max_length=200, blank=True)
+    content = models.TextField()  
+    version = models.CharField(max_length=50, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.doc_type} v{self.version}"
