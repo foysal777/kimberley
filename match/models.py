@@ -52,6 +52,9 @@ class Message(models.Model):
 
     message_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_TEXT)
     text = models.TextField(blank=True)
+    is_seen = models.BooleanField(default=False)
+    is_delivered = models.BooleanField(default=False)
+
 
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)

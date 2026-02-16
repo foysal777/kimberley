@@ -818,3 +818,64 @@ def terms_and_conditions(request):
         "version": doc.version,
         "updated_at": doc.updated_at,
     })
+
+
+
+
+
+
+from django.shortcuts import get_object_or_404
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+
+from .models import UserProfile
+from .serializers import PublicUserProfileSerializer
+from .models import TaxonomyCategory  
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def public_user_profile(request, user_id: int):
+    profile = get_object_or_404(
+        UserProfile.objects.select_related("user").prefetch_related("selected_items"),
+        user_id=user_id
+    )
+
+    # Only SKILL categories
+    categories = (
+        TaxonomyCategory.objects
+        .filter(is_active=True, type="SKILL")
+        .prefetch_related("items")
+        .order_by("order", "id")
+    )
+
+    selected_ids = set(profile.selected_items.values_list("id", flat=True))
+
+    selected_taxonomy = []
+    for cat in categories:
+        items = cat.items.filter(is_active=True).order_by("order", "id")
+
+        selected_items = [
+            {"id": item.id, "text": item.text, "order": item.order}
+            for item in items
+            if item.id in selected_ids
+        ]
+
+        # only send categories that have selected items
+        if selected_items:
+            selected_taxonomy.append({
+                "id": cat.id,
+                "title": cat.title,
+                "type": cat.type,   # will be "SKILL"
+                "order": cat.order,
+                "items": selected_items
+            })
+
+    return Response(
+        {
+            "profile": PublicUserProfileSerializer(profile, context={"request": request}).data,
+            "selected_taxonomy": selected_taxonomy
+        },
+        status=status.HTTP_200_OK
+    )

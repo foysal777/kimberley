@@ -249,3 +249,40 @@ class AvailableSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
+
+
+
+
+
+
+from rest_framework import serializers
+from .models import UserProfile
+
+class PublicUserProfileSerializer(serializers.ModelSerializer):
+    photo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserProfile
+        fields = [
+            "user",
+            "photo",
+            "full_name",
+            "role",
+            "industry",
+            "location",
+            "what_hoping_to_gain",
+            "bio",
+            "available_days",
+            "time_start",
+            "time_end",
+        ]
+        read_only_fields = fields
+
+    def get_photo(self, obj):
+        request = self.context.get("request")
+        if not obj.photo:
+            return None
+        if request:
+            return request.build_absolute_uri(obj.photo.url)
+        return obj.photo.url

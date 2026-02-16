@@ -65,6 +65,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
             text=text,
         )
 
+
+        await self.channel_layer.group_send(
+        f"chatlist_{other_user_id}",
+        {"type": "chatlist.refresh"}
+)
+
+        await self.channel_layer.group_send(
+        f"chatlist_{self.user.id}",
+        {"type": "chatlist.refresh"}
+      )
+
         # Broadcast to chat group (both users will get)
         await self.channel_layer.group_send(
             self.room_group_name,
