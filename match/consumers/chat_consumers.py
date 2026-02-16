@@ -144,7 +144,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     ws://host/ws/notifications/
     - Join group notif_<user_id>
     - Server pushes notifications here in real-time
-    - ✅ Mark user online/offline in UserProfile
+    -  Mark user online/offline in UserProfile
     """
 
     async def connect(self):
@@ -157,7 +157,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-        # ✅ set online = True
+        # set online = True
         await self.set_user_online(self.user.id, True)
 
         await self.send_json({"type": "connected", "channel": "notifications"})
@@ -168,7 +168,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         except Exception:
             pass
 
-        # ✅ set online = False
+        # set online = False
         await self.set_user_online(self.user.id, False)
 
     async def notif_push(self, event):

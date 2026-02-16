@@ -184,7 +184,7 @@ def LoginView(request):
     if not user.is_email_verified:
         return Response({"detail": "Email not verified."}, status=status.HTTP_403_FORBIDDEN)
 
-    return Response({ "id": user.id, "tokens": _tokens_for_user(user), "email": user.email , "message": "Login successful"}, status=status.HTTP_200_OK)
+    return Response({ "id": user.id, "tokens": _tokens_for_user(user), "email": user.email , "message": "Login successful" , "plan_type" : user.plan_type}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -370,6 +370,15 @@ def taxonomy_list(request):
     return Response(data, status=status.HTTP_200_OK)
 
 
+
+
+
+
+
+
+
+
+
 @api_view(["GET", "POST", "PATCH"])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
@@ -459,9 +468,9 @@ def public_taxonomy_list(request):
         items = []
         for item in cat.items.filter(is_active=True).order_by("order", "id"):
             items.append({
-                "id": item.id,
+                "item_id": item.id,
                 "text": item.text,
-                "order": item.order,
+                "item_order": item.order,
             })
 
         data.append({
@@ -506,7 +515,7 @@ def _set_intentions(profile: UserProfile, item_ids: list[int]):
 
     items = TaxonomyItem.objects.filter(
         id__in=item_ids,
-        category__type="INTENTION",
+        # category__type="INTENTION",
         is_active=True,
         category__is_active=True
     )
@@ -537,7 +546,7 @@ def _build_taxonomy_payload(selected_ids: set[int] | None):
         items_list = []
         qs = cat.items.filter(is_active=True).order_by("order", "id")
         for item in qs:
-            row = {"id": item.id, "text": item.text, "order": item.order}
+            row = {"item_id": item.id, "text": item.text, "order": item.order}
             if selected_ids is not None:
                 row["selected"] = item.id in selected_ids
             items_list.append(row)
@@ -719,6 +728,53 @@ def save_user_location(request):
 
 
 
+
+
+# views.py
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from .models import Available
+from .serializers import AvailableSerializer
+
+
+@api_view(["POST", "PATCH"])
+@permission_classes([IsAuthenticated])
+def availability_view(request):
+    # POST = create or update (upsert)
+    if request.method == "POST":
+        serializer = AvailableSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save()
+        return Response(
+            AvailableSerializer(instance).data,
+            status=status.HTTP_200_OK
+        )
+
+    # PATCH = partial update
+    if request.method == "PATCH":
+        try:
+            instance = Available.objects.get(user=request.user)
+        except Available.DoesNotExist:
+            return Response(
+                {"detail": "Availability not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = AvailableSerializer(
+            instance,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 

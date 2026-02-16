@@ -6,3 +6,4 @@ urlpatterns = [
     path("swipes/me/", my_swipes, name="my-swipes"),  # WHOS PEOPLE I LIKED OR DISLIKED ( swipe action list )
     path("feed/", feed, name="feed"),
 ]
+ 

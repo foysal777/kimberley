@@ -130,7 +130,8 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True)
     # Example: ["Mon","Tue"] or ["All"]
     available_days = models.JSONField(default=list, blank=True)
-    time_range = models.CharField(max_length=60, blank=True)  
+    time_start = models.TimeField(null=True, blank=True)
+    time_end = models.TimeField(null=True, blank=True)
     # Connect taxonomy selections to profile
     selected_items = models.ManyToManyField(TaxonomyItem, through="UserProfileSelection", blank=True)
     is_online = models.BooleanField(default=False)  # for future use: online status

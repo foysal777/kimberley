@@ -66,7 +66,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 # --------------- profile serializers ----------------
 
 from rest_framework import serializers
-from .models import UserProfile, TaxonomyCategory, TaxonomyItem, UserProfileSelection
+from .models import Available, UserProfile, TaxonomyCategory, TaxonomyItem, UserProfileSelection
 
 class TaxonomyItemSerializer(serializers.ModelSerializer):
     selected = serializers.BooleanField(read_only=True)
@@ -107,12 +107,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "what_hoping_to_gain",
             "bio",
             "available_days",
-            "time_range",
+            "time_start",
+            'time_end',
             "intention_item_ids",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+    def validate(self, data):
+        start = data.get("time_start")
+        end = data.get("time_end")
+
+        if start and end:
+            if start >= end:
+                raise serializers.ValidationError(
+                    "time_end must be greater than time_start"
+                )
+        return data
 
     def to_internal_value(self, data):
         """
@@ -200,3 +213,39 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
  
+
+
+
+
+
+
+class AvailableSerializer(serializers.ModelSerializer):
+    is_available = serializers.BooleanField(required=False)
+    is_visible = serializers.BooleanField(required=False)
+
+    class Meta:
+        model = Available
+        fields = ["is_available", "is_visible"]
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+
+        instance, created = Available.objects.get_or_create(
+            user=user,
+            defaults=validated_data
+        )
+
+        
+        if not created:
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+
+        return instance
+
+    def update(self, instance, validated_data):
+      
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance

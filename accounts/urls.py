@@ -14,6 +14,7 @@ from .views import (
     save_user_location,
     taxonomy_list,
     terms_and_conditions,
+    availability_view
 )
 
 urlpatterns = [
@@ -34,7 +35,7 @@ urlpatterns = [
     path("privacy-policy/", privacy_policy, name="privacy-policy"),
     path("terms/", terms_and_conditions, name="terms-and-conditions"),
     path("location/", save_user_location, name="save-user-location"),
-
+    path("availability/", availability_view, name="availability"),
 
 ]
 

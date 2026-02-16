@@ -15,8 +15,8 @@ from rest_framework import status
 from django.db import transaction
 
 from django.contrib.auth import get_user_model
-from match.models import  Match, Conversation  # ✅ add these imports
-from match.models import Notification  # optional, if you want notifications
+from match.models import  Match, Conversation  
+from match.models import Notification
 
 User = get_user_model()
 
@@ -65,7 +65,7 @@ def push_realtime_notification(to_user_id: int, payload: dict):
 #  Daily swipe limit helpers
 def get_daily_swipe_limit(user) -> int:
    
-    return 50 if user.is_premium() else 2
+    return 50 if user.is_premium() else 10
 
 
 def count_today_swipes(user) -> int:
