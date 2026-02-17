@@ -445,3 +445,68 @@ def analytics(request):
             "active_conversations": active_conversations,
         }
     })
+
+
+
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+
+from match.models import Conversation, Message
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def conversation_last_messages(request, conversation_id: int):
+    """
+    GET /api/chat/<conversation_id>/messages/last/
+    Returns last 20 messages (oldest->newest order)
+    """
+
+    conversation = get_object_or_404(
+        Conversation.objects.select_related("match"),
+        id=conversation_id
+    )
+
+    match = conversation.match
+    if request.user.id not in (match.user1_id, match.user2_id) or not match.is_active:
+        return Response(
+            {"detail": "You do not have access to this conversation."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    # ✅ last 20 (newest first) then reverse to show oldest->newest
+    qs = (
+        Message.objects
+        .filter(conversation_id=conversation_id)
+        .select_related("sender")
+        .order_by("-created_at")[:20]
+    )
+    messages = list(qs)[::-1]
+
+    data = [
+        {
+            "id": msg.id,
+            "conversation_id": msg.conversation_id,
+            "sender_id": msg.sender_id,
+            "text": msg.text,
+            "message_type": msg.message_type,
+            "is_seen": msg.is_seen,
+            "is_delivered": msg.is_delivered,
+            "created_at": msg.created_at.isoformat(),
+            "read_at": msg.read_at.isoformat() if msg.read_at else None,
+        }
+        for msg in messages
+    ]
+
+    return Response(
+        {
+            "conversation_id": conversation_id,
+            "count": len(data),
+            "results": data
+        },
+        status=status.HTTP_200_OK
+    )

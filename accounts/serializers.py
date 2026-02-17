@@ -39,7 +39,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
 
 class ResetPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    otp = serializers.CharField(max_length=6)
+    # otp = serializers.CharField(max_length=6)
     new_password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True, min_length=8)
 
@@ -286,3 +286,39 @@ class PublicUserProfileSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(obj.photo.url)
         return obj.photo.url
+
+
+
+
+
+from rest_framework import serializers
+from django.utils import timezone
+from datetime import timedelta
+from .models import User
+
+
+class UpdatePlanSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ["plan_type"]
+
+    def validate_plan_type(self, value):
+        valid_plans = [choice[0] for choice in User.PLAN_CHOICES]
+        if value not in valid_plans:
+            raise serializers.ValidationError("Invalid plan type.")
+        return value
+
+    def update(self, instance, validated_data):
+        new_plan = validated_data.get("plan_type")
+
+        instance.plan_type = new_plan
+
+ 
+        if new_plan == User.PLAN_PREMIUM:
+            instance.plan_expire_at = timezone.now() + timedelta(days=30)
+        else:
+            instance.plan_expire_at = None
+
+        instance.save(update_fields=["plan_type", "plan_expire_at"])
+        return instance

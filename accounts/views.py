@@ -232,7 +232,7 @@ def ResetPasswordView(request):
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
 
     email = ser.validated_data["email"].lower().strip()
-    otp = ser.validated_data["otp"].strip()
+    # otp = ser.validated_data["otp"].strip()
     new_password = ser.validated_data["new_password"]
 
     try:
@@ -240,17 +240,17 @@ def ResetPasswordView(request):
     except User.DoesNotExist:
         return Response({"detail": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
 
-    otp_obj = EmailOTP.objects.filter(
-        user=user, purpose="RESET", code=otp, is_used=False
-    ).order_by("-created_at").first()
+    # otp_obj = EmailOTP.objects.filter(
+    #     user=user, purpose="RESET", code=otp, is_used=False
+    # ).order_by("-created_at").first()
 
-    if not otp_obj:
-        return Response({"detail": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
-    if otp_obj.is_expired():
-        return Response({"detail": "OTP expired."}, status=status.HTTP_400_BAD_REQUEST)
+    # if not otp_obj:
+    #     return Response({"detail": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+    # if otp_obj.is_expired():
+    #     return Response({"detail": "OTP expired."}, status=status.HTTP_400_BAD_REQUEST)
 
-    otp_obj.is_used = True
-    otp_obj.save(update_fields=["is_used"])
+    # otp_obj.is_used = True
+    # otp_obj.save(update_fields=["is_used"])
 
     user.set_password(new_password)
     user.save(update_fields=["password"])
@@ -876,6 +876,43 @@ def public_user_profile(request, user_id: int):
         {
             "profile": PublicUserProfileSerializer(profile, context={"request": request}).data,
             "selected_taxonomy": selected_taxonomy
+        },
+        status=status.HTTP_200_OK
+    )
+
+
+
+
+
+
+
+from .serializers import UpdatePlanSerializer
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_plan(request):
+    """
+    PATCH /api/accounts/update-plan/
+    Body: { "plan_type": "PREMIUM" }
+    """
+
+    serializer = UpdatePlanSerializer(
+        request.user,
+        data=request.data,
+        partial=True
+    )
+
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    serializer.save()
+
+    return Response(
+        {
+            "success": True,
+            "plan_type": request.user.plan_type,
+            "plan_expire_at": request.user.plan_expire_at,
         },
         status=status.HTTP_200_OK
     )

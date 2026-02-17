@@ -20,7 +20,7 @@ class User(AbstractUser):
     plan_expire_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username"]  # required when creating superuser
+    REQUIRED_FIELDS = ["username"] 
 
 
 

@@ -15,7 +15,8 @@ from .views import (
     save_user_location,
     taxonomy_list,
     terms_and_conditions,
-    availability_view
+    availability_view,
+    update_plan
 )
 
 urlpatterns = [
@@ -38,6 +39,8 @@ urlpatterns = [
     path("location/", save_user_location, name="save-user-location"),
     path("availability/", availability_view, name="availability"),
     path("profiles/<int:user_id>/", public_user_profile, name="public-user-profile"),
+    path("update-plan/", update_plan , name="update-plan"),
+
 
 
 ]
