@@ -16,7 +16,8 @@ from .views import (
     taxonomy_list,
     terms_and_conditions,
     availability_view,
-    update_plan
+    update_plan,
+    help_support
 )
 
 urlpatterns = [
@@ -40,6 +41,8 @@ urlpatterns = [
     path("availability/", availability_view, name="availability"),
     path("profiles/<int:user_id>/", public_user_profile, name="public-user-profile"),
     path("update-plan/", update_plan , name="update-plan"),
+    path("support/help/", help_support, name="help-support"),
+
 
 
 

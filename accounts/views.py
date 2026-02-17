@@ -493,7 +493,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-
 from .models import UserProfile, TaxonomyCategory, TaxonomyItem, UserProfileSelection
 from .serializers import UserProfileSerializer
 
@@ -503,31 +502,54 @@ def _get_or_none_profile(user):
     except UserProfile.DoesNotExist:
         return None
 
+
+
+
+from django.db import transaction
+
 def _set_intentions(profile: UserProfile, item_ids: list[int]):
-    # remove existing INTENTION selections
-    UserProfileSelection.objects.filter(
-        profile=profile,
-        item__category__type="INTENTION"
-    ).delete()
+    # remove duplicates
+    item_ids = list(dict.fromkeys([int(x) for x in (item_ids or [])]))
+    desired_ids = set(item_ids)
 
-    if not item_ids:
-        return
-
+    # no category__type filter
     items = TaxonomyItem.objects.filter(
-        id__in=item_ids,
-        # category__type="INTENTION",
+        id__in=desired_ids,
         is_active=True,
         category__is_active=True
     )
 
     found_ids = set(items.values_list("id", flat=True))
-    missing = [i for i in item_ids if i not in found_ids]
+    missing = sorted(list(desired_ids - found_ids))
     if missing:
-        raise ValueError(f"Invalid intention item ids: {missing}")
+        raise ValueError(f"Invalid item ids: {missing}")
 
-    UserProfileSelection.objects.bulk_create(
-        [UserProfileSelection(profile=profile, item=item) for item in items]
-    )
+    with transaction.atomic():
+        # existing selections for this profile (ALL types)
+        existing_ids = set(
+            UserProfileSelection.objects.filter(
+                profile_id=profile.id
+            ).values_list("item_id", flat=True)
+        )
+
+        # delete items not in new list
+        to_delete = existing_ids - desired_ids
+        if to_delete:
+            UserProfileSelection.objects.filter(
+                profile_id=profile.id,
+                item_id__in=to_delete
+            ).delete()
+
+        # insert only missing
+        to_add = desired_ids - existing_ids
+        if to_add:
+            UserProfileSelection.objects.bulk_create(
+                [
+                    UserProfileSelection(profile_id=profile.id, item_id=i)
+                    for i in to_add
+                ],
+                ignore_conflicts=True  # safety
+            )
 
 def _build_taxonomy_payload(selected_ids: set[int] | None):
     """
@@ -915,4 +937,63 @@ def update_plan(request):
             "plan_expire_at": request.user.plan_expire_at,
         },
         status=status.HTTP_200_OK
+    )
+
+
+
+
+from django.conf import settings
+from django.core.mail import send_mail
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
+from rest_framework.response import Response
+
+from .models import SupportTicket
+from .serializers import SupportTicketCreateSerializer
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny]) 
+@parser_classes([JSONParser, FormParser, MultiPartParser])
+def help_support(request):
+    """
+    POST /api/support/help/
+    body: { "email": "...", "message": "..." }
+    """
+
+    ser = SupportTicketCreateSerializer(data=request.data)
+    if not ser.is_valid():
+        return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    user = request.user if request.user.is_authenticated else None
+    ticket = SupportTicket.objects.create(
+        user=user,
+        email=ser.validated_data["email"],
+        message=ser.validated_data["message"],
+    )
+
+    # SMTP mail send
+    receiver = getattr(settings, "SUPPORT_RECEIVER_EMAIL", None)
+    if receiver:
+        subject = "Help & Support Request"
+        body = (
+            f"From Email: {ticket.email}\n"
+            f"User ID: {ticket.user_id or 'Anonymous'}\n"
+            f"Created At: {ticket.created_at.isoformat()}\n\n"
+            f"Message:\n{ticket.message}\n"
+        )
+
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[receiver],
+            fail_silently=False,   
+        )
+
+    return Response(
+        {"success": True, "message": "Successfully  message submitted."},
+        status=status.HTTP_201_CREATED
     )

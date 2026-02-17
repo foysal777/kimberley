@@ -126,6 +126,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
                     "time_end must be greater than time_start"
                 )
         return data
+    
+
+
+
+  
+
 
     def to_internal_value(self, data):
         """
@@ -212,7 +218,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
 
- 
+
 
 
 
@@ -322,3 +328,18 @@ class UpdatePlanSerializer(serializers.ModelSerializer):
 
         instance.save(update_fields=["plan_type", "plan_expire_at"])
         return instance
+
+
+
+from rest_framework import serializers
+from .models import SupportTicket
+
+class SupportTicketCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupportTicket
+        fields = ["email", "message"]
+
+    def validate_message(self, value):
+        if len((value or "").strip()) < 5:
+            raise serializers.ValidationError("Please describe your problem.")
+        return value

@@ -312,6 +312,7 @@ from match.models import Match, Conversation, Message
 from swipe.models import SwipeAction
 from accounts.models import UserProfileSelection
 from accounts.models import ProfileView  
+from django.db.models import Q, Count, Min, Avg, OuterRef, Subquery, ExpressionWrapper, DurationField, F
 
 
 
@@ -399,7 +400,8 @@ def analytics(request):
     # period matches -> other users -> their taxonomy selections -> top items
     # TaxonomyItem field is `text` (NOT name)
     # ---------------------------
-    period_matches = my_matches_qs.filter(created_at__gte=since).only("user1_id", "user2_id")
+    period_matches = my_matches_qs.only("user1_id", "user2_id")
+
 
     other_user_ids = []
     for m in period_matches:
@@ -409,7 +411,7 @@ def analytics(request):
         top_items_qs = (
             UserProfileSelection.objects
             .filter(profile__user_id__in=other_user_ids)
-            .values("item_id", "item__text")           # ✅ FIX: item__text
+            .values("item_id", "item__text")  # ✅ FIX: item__text
             .annotate(cnt=Count("item_id"))
             .order_by("-cnt")[:3]
         )
@@ -428,6 +430,36 @@ def analytics(request):
         last_message_at__gte=since
     ).count()
 
+    # ---------------------------
+    # 8) Average Response Time (my reply time after receiving) in seconds
+    # ---------------------------
+    next_reply_time_sq = Subquery(
+        Message.objects.filter(
+            conversation_id=OuterRef("conversation_id"),
+            sender=user,
+            created_at__gt=OuterRef("created_at"),
+        )
+        .order_by("created_at")
+        .values("created_at")[:1]
+    )
+
+    incoming_qs = (
+        Message.objects
+        .filter(conversation_id__in=my_conversation_ids, created_at__gte=since)
+        .exclude(sender=user)
+        .annotate(next_reply_time=next_reply_time_sq)
+        .exclude(next_reply_time__isnull=True)
+        .annotate(
+            resp_delta=ExpressionWrapper(
+                F("next_reply_time") - F("created_at"),
+                output_field=DurationField()
+            )
+        )
+    )
+
+    avg_delta = incoming_qs.aggregate(avg=Avg("resp_delta"))["avg"]
+    average_response_time = None if avg_delta is None else avg_delta.total_seconds()
+
     return Response({
         "range_days": days,
         "since": since.isoformat(),
@@ -443,10 +475,9 @@ def analytics(request):
         "audience_overview": audience_overview,
         "your_activity": {
             "active_conversations": active_conversations,
+            "average_response_time": average_response_time,
         }
     })
-
-
 
 
 from rest_framework.decorators import api_view, permission_classes
@@ -478,7 +509,7 @@ def conversation_last_messages(request, conversation_id: int):
             status=status.HTTP_403_FORBIDDEN
         )
 
-    # ✅ last 20 (newest first) then reverse to show oldest->newest
+    # last 20 (newest first) then reverse to show oldest->newest
     qs = (
         Message.objects
         .filter(conversation_id=conversation_id)

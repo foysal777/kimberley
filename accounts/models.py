@@ -207,3 +207,23 @@ class LegalDocument(models.Model):
 
     def __str__(self):
         return f"{self.doc_type} v{self.version}"
+
+
+
+
+
+
+class SupportTicket(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="support_tickets"
+    )
+    email = models.EmailField()
+    message = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"SupportTicket({self.id}) {self.email}"
