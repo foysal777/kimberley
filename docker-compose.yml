@@ -1,0 +1,56 @@
+services:
+  web:
+    build: .
+    container_name: kimberley_web
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             daphne -b 0.0.0.0 -p 8000 project_root.asgi:application"
+
+  celery:
+    build: .
+    container_name: celery_worker_kimberley
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    command: >
+      sh -c "celery -A project_root worker -l info"
+
+  celerybeat:
+    build: .
+    container_name: celery_beat_kimberley
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    command: >
+      sh -c "celery -A project_root beat -l info"
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_kimberley
+    
+
+  db:
+    image: postgres:16-alpine
+    container_name: postgres_db_kimberley
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    
+
+volumes:
+  pgdata:

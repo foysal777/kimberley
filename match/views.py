@@ -411,7 +411,7 @@ def analytics(request):
         top_items_qs = (
             UserProfileSelection.objects
             .filter(profile__user_id__in=other_user_ids)
-            .values("item_id", "item__text")  # ✅ FIX: item__text
+            .values("item_id", "item__text")  # FIX: item__text
             .annotate(cnt=Count("item_id"))
             .order_by("-cnt")[:3]
         )

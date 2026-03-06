@@ -138,9 +138,10 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 
 
 
+import os
 
-
-
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
 
 
 WSGI_APPLICATION = 'project_root.wsgi.application'

@@ -61,9 +61,9 @@ def RegisterView(request):
         username=username,
         email=email,
         password=password,
-        first_name=full_name,  # or store full name separately if you prefer
+        first_name=full_name,  
         is_email_verified=False,
-        is_active=True,  # keep active; just gate features by is_email_verified
+        is_active=True,  
     )
 
     code = generate_otp()

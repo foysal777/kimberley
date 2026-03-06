@@ -10,7 +10,6 @@ from project_root import settings
 from django.conf import settings
 from django.conf.urls.static import static
 
-
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
