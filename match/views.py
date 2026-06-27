@@ -19,10 +19,17 @@ def connected_users_list(request):
     """
     user_id = request.user.id
 
+    from accounts.models import UserBlock
+    blocked_by_me = UserBlock.objects.filter(blocker=request.user).values_list("blocked_user_id", flat=True)
+    blocked_me = UserBlock.objects.filter(blocked_user=request.user).values_list("blocker_id", flat=True)
+    blocked_user_ids = set(blocked_by_me).union(set(blocked_me))
+
     matches = (
         Match.objects
         .filter(is_active=True)
         .filter(Q(user1_id=user_id) | Q(user2_id=user_id))
+        .exclude(user1_id__in=blocked_user_ids)
+        .exclude(user2_id__in=blocked_user_ids)
         .select_related("user1", "user2")
         .select_related("conversation")
         .order_by("-created_at")
@@ -99,10 +106,17 @@ def connected_users_list_for_people(request):
     """
     user_id = request.user.id
 
+    from accounts.models import UserBlock
+    blocked_by_me = UserBlock.objects.filter(blocker=request.user).values_list("blocked_user_id", flat=True)
+    blocked_me = UserBlock.objects.filter(blocked_user=request.user).values_list("blocker_id", flat=True)
+    blocked_user_ids = set(blocked_by_me).union(set(blocked_me))
+
     matches = (
         Match.objects
         .filter(is_active=True)
         .filter(Q(user1_id=user_id) | Q(user2_id=user_id))
+        .exclude(user1_id__in=blocked_user_ids)
+        .exclude(user2_id__in=blocked_user_ids)
         .select_related("user1", "user2")
         .select_related("conversation")
         .order_by("-created_at")

@@ -997,3 +997,94 @@ def help_support(request):
         {"success": True, "message": "Successfully  message submitted."},
         status=status.HTTP_201_CREATED
     )
+
+
+from .models import UserReport, UserBlock
+from .serializers import ReportUserSerializer
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+from django.shortcuts import get_object_or_404
+from django.db.models import Q
+from match.models import Match
+
+@extend_schema(
+    request=ReportUserSerializer,
+    responses={201: OpenApiResponse(description="User reported successfully.")},
+    tags=['User Actions'],
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def report_user_view(request, id):
+    reported_user = get_object_or_404(User, id=id)
+    ser = ReportUserSerializer(data=request.data)
+    if not ser.is_valid():
+        return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+    reason = ser.validated_data["reason"]
+    UserReport.objects.create(
+        reporter=request.user,
+        reported_user=reported_user,
+        reason=reason
+    )
+    
+    # SMTP mail send
+    receiver = getattr(settings, "SUPPORT_RECEIVER_EMAIL", None)
+    if receiver:
+        subject = f"User Report Alert: {reported_user.email}"
+        body = (
+            f"Reporter Email: {request.user.email} (ID: {request.user.id})\n"
+            f"Reported User Email: {reported_user.email} (ID: {reported_user.id})\n"
+            f"Reason: {reason}\n"
+            f"Please review the reported user in the Admin Dashboard.\n"
+        )
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[receiver],
+            fail_silently=True,   
+        )
+        
+    return Response({"success": True, "detail": "User reported successfully."}, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    request=None,
+    responses={201: OpenApiResponse(description="User blocked successfully.")},
+    tags=['User Actions'],
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def block_user_view(request, id):
+    blocked_user = get_object_or_404(User, id=id)
+    if request.user == blocked_user:
+        return Response({"detail": "You cannot block yourself."}, status=status.HTTP_400_BAD_REQUEST)
+        
+    UserBlock.objects.get_or_create(
+        blocker=request.user,
+        blocked_user=blocked_user
+    )
+    
+    # Crucial Action: deactivate any active match between them
+    Match.objects.filter(
+        Q(user1=request.user, user2=blocked_user) | Q(user1=blocked_user, user2=request.user)
+    ).update(is_active=False, unmatched_at=timezone.now())
+    
+    # SMTP mail send
+    receiver = getattr(settings, "SUPPORT_RECEIVER_EMAIL", None)
+    if receiver:
+        subject = f"User Block Alert: {blocked_user.email}"
+        body = (
+            f"Blocker Email: {request.user.email} (ID: {request.user.id})\n"
+            f"Blocked User Email: {blocked_user.email} (ID: {blocked_user.id})\n"
+            f"Please check the admin dashboard if further action is needed.\n"
+        )
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[receiver],
+            fail_silently=True,   
+        )
+        
+    return Response({"success": True, "detail": "User blocked successfully."}, status=status.HTTP_201_CREATED)
+

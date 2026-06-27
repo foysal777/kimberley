@@ -343,3 +343,8 @@ class SupportTicketCreateSerializer(serializers.ModelSerializer):
         if len((value or "").strip()) < 5:
             raise serializers.ValidationError("Please describe your problem.")
         return value
+
+
+class ReportUserSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=255)
+

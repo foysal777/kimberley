@@ -58,6 +58,11 @@ class ChatListConsumer(AsyncWebsocketConsumer):
 
         results = []
 
+        from accounts.models import UserBlock
+        blocked_by_me = list(UserBlock.objects.filter(blocker_id=user_id).values_list("blocked_user_id", flat=True))
+        blocked_me = list(UserBlock.objects.filter(blocked_user_id=user_id).values_list("blocker_id", flat=True))
+        blocked_user_ids = set(blocked_by_me).union(set(blocked_me))
+
         for conv in conversations:
             match = conv.match
 
@@ -67,6 +72,8 @@ class ChatListConsumer(AsyncWebsocketConsumer):
                 continue
 
             other_user = match.user2 if match.user1_id == user_id else match.user1
+            if other_user.id in blocked_user_ids:
+                continue
 
             # last message
             last_msg = (

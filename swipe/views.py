@@ -399,7 +399,12 @@ def feed(request):
         created_at__gte=cutoff,
     ).values_list("to_user_id", flat=True)
 
-    exclude_ids = liked_ids.union(passed_recent_ids)
+    from accounts.models import UserBlock
+    blocked_by_me = UserBlock.objects.filter(blocker=request.user).values_list("blocked_user_id", flat=True)
+    blocked_me = UserBlock.objects.filter(blocked_user=request.user).values_list("blocker_id", flat=True)
+    blocked_user_ids = set(blocked_by_me).union(set(blocked_me))
+
+    exclude_ids = liked_ids.union(passed_recent_ids).union(blocked_user_ids)
 
     # ---- candidate base queryset ----
  

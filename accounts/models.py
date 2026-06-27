@@ -227,3 +227,25 @@ class SupportTicket(models.Model):
 
     def __str__(self):
         return f"SupportTicket({self.id}) {self.email}"
+
+
+class UserReport(models.Model):
+    reporter = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='reports_made', on_delete=models.CASCADE)
+    reported_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='reports_received', on_delete=models.CASCADE)
+    reason = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.reporter} reported {self.reported_user}"
+
+class UserBlock(models.Model):
+    blocker = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='blocks_made', on_delete=models.CASCADE)
+    blocked_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='blocks_received', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('blocker', 'blocked_user')
+
+    def __str__(self):
+        return f"{self.blocker} blocked {self.blocked_user}"
+

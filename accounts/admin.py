@@ -65,3 +65,17 @@ class TaxonomyItemAdmin(admin.ModelAdmin):
 
 
 # Register your models here.
+from .models import UserReport, UserBlock
+
+@admin.register(UserReport)
+class UserReportAdmin(admin.ModelAdmin):
+    list_display = ("id", "reporter", "reported_user", "reason", "created_at")
+    search_fields = ("reporter__email", "reported_user__email", "reason")
+    list_filter = ("created_at",)
+
+@admin.register(UserBlock)
+class UserBlockAdmin(admin.ModelAdmin):
+    list_display = ("id", "blocker", "blocked_user", "created_at")
+    search_fields = ("blocker__email", "blocked_user__email")
+    list_filter = ("created_at",)
+
