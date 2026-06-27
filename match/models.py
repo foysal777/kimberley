@@ -123,3 +123,7 @@ class DeviceToken(models.Model):
 
     def __str__(self):
         return f"DeviceToken({self.user_id}, {self.platform})"
+
+
+
+hello this is me
